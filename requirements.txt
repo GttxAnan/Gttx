@@ -1,0 +1,7 @@
+flask
+pypdf
+flask-cors
+pyttsx3
+reportlab
+edge-tts
+aiofiles
