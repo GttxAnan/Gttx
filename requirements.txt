@@ -5,3 +5,4 @@ pyttsx3
 reportlab
 edge-tts
 aiofiles
+google-cloud-texttospeech
