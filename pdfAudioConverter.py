@@ -7,6 +7,7 @@ import logging
 import threading
 import re
 from datetime import datetime
+import html
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -33,34 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Global state
 tasks = {}
-FREE_TIER_LIMIT = 1_000_000
 
-# --- Helper Functions ---
-
-def load_usage():
-    if os.path.exists(USAGE_FILE):
-        try:
-            with open(USAGE_FILE, 'r') as f:
-                return json.load(f)
-        except:
-            pass
-    return {'total_chars': 0, 'month': datetime.now().strftime("%Y-%m")}
-
-def save_usage(usage):
-    with open(USAGE_FILE, 'w') as f:
-        json.dump(usage, f)
-
-def update_usage(char_count):
-    usage = load_usage()
-    usage['total_chars'] += char_count
-    save_usage(usage)
-    return usage['total_chars']
-
-def check_quota(char_count):
-    usage = load_usage()
-    if usage['total_chars'] + char_count > FREE_TIER_LIMIT:
-        return False
-    return True
 
 def load_history():
     if os.path.exists(HISTORY_FILE):
@@ -78,50 +52,121 @@ def save_history(entry):
         json.dump(history[:50], f)
 
 def find_start_page(reader):
-    patterns = [
-        re.compile(r"^\s*chapter\s*1\s*$", re.IGNORECASE | re.MULTILINE),
+    start_patterns = [
         re.compile(r"^\s*introduction\s*$", re.IGNORECASE | re.MULTILINE),
-        re.compile(r"^\s*part\s*i\s*$", re.IGNORECASE | re.MULTILINE),
-        re.compile(r"^\s*page\s*1\s*$", re.IGNORECASE | re.MULTILINE)
+        re.compile(r"^\s*preface\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*chapter\s*1\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*chapter\s*one\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*1\s*$", re.IGNORECASE | re.MULTILINE)
     ]
+    
+    exclude_patterns = [
+        re.compile(r"^\s*contents\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*table\s*of\s*contents\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*list\s*of\s*tables\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*list\s*of\s*figures\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*index\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*acknowledgments\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*forward\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*dedicated\s*to\s*$", re.IGNORECASE | re.MULTILINE)
+    ]
+
     num_pages = len(reader.pages)
-    check_limit = min(num_pages, 20)
+    check_limit = min(num_pages, 50)
+    
     for i in range(check_limit):
         try:
             text = reader.pages[i].extract_text()
+            if not text: continue
+            
+            is_excluded = False
+            for pattern in exclude_patterns:
+                if pattern.search(text):
+                    is_excluded = True
+                    break
+            
+            if is_excluded:
+                continue
+
+            for pattern in start_patterns:
+                if pattern.search(text):
+                    return i
+        except: continue
+        
+    return 0
+
+def find_end_page(reader, start_page):
+    num_pages = len(reader.pages)
+    end_patterns = [
+        re.compile(r"^\s*index\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*bibliography\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*notes\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*acknowledgments\s*$", re.IGNORECASE | re.MULTILINE),
+        re.compile(r"^\s*thank\s*you\s*$", re.IGNORECASE | re.MULTILINE)
+    ]
+    
+    # Check from the end backwards
+    for i in range(num_pages - 1, start_page, -1):
+        try:
+            text = reader.pages[i].extract_text()
             if text:
-                for pattern in patterns:
+                for pattern in end_patterns:
                     if pattern.search(text):
                         return i
         except: continue
-    return 0
+    return num_pages
 
 def smart_chunk_text(text, max_chars=4500):
+    # Pre-process: Replace newlines with spaces to treat text as a continuous stream
+    text = text.replace('\n', ' ')
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    # Detect headings and insert SSML break
+    text = html.escape(text)
+    
+    heading_patterns = [
+        r'(?i)\b(chapter\s+\d+|introduction|part\s+[IVX]+|prologue|epilogue)\b'
+    ]
+    
+    for pattern in heading_patterns:
+        text = re.sub(pattern, r'\1 <break time="2000ms"/>', text)
+
     chunks = []
     current_chunk = ""
-    paragraphs = text.split('\n\n')
     
-    for paragraph in paragraphs:
-        if len(current_chunk) + len(paragraph) + 2 > max_chars:
-            if current_chunk:
-                chunks.append(current_chunk.strip())
-                current_chunk = ""
-            if len(paragraph) > max_chars:
-                sentences = paragraph.replace('. ', '.|').replace('? ', '?|').replace('! ', '!|').split('|')
-                for sentence in sentences:
-                    if len(current_chunk) + len(sentence) + 1 > max_chars:
-                        if current_chunk: chunks.append(current_chunk.strip())
-                        current_chunk = sentence
-                    else:
-                        current_chunk += " " + sentence
-            else:
-                current_chunk = paragraph
-        else:
-            current_chunk += "\n\n" + paragraph
+    # Split by sentence endings (. ? !). We keep the punctuation.
+    sentences = re.split(r'(?<=[.?!])\s+', text)
+    
+    for sentence in sentences:
+        if not sentence.strip(): continue # Skip empty sentences
 
-    if current_chunk:
-        chunks.append(current_chunk.strip())
+        # If a single sentence is too long...
+        if len(sentence) > max_chars:
+            parts = sentence.split(', ')
+            for part in parts:
+                if len(current_chunk) + len(part) + 2 > max_chars:
+                    if current_chunk.strip():
+                        chunks.append(f"<speak>{current_chunk.strip()}</speak>")
+                        current_chunk = ""
+                    if len(part) > max_chars:
+                         chunks.append(f"<speak>{part.strip()}</speak>")
+                    else:
+                         current_chunk = part
+                else:
+                    current_chunk += (", " if current_chunk and not current_chunk.endswith(' ') else "") + part
+        
+        elif len(current_chunk) + len(sentence) + 1 > max_chars:
+            if current_chunk.strip():
+                chunks.append(f"<speak>{current_chunk.strip()}</speak>")
+            current_chunk = sentence
+        else:
+            current_chunk += (" " if current_chunk else "") + sentence
+
+    if current_chunk.strip():
+        chunks.append(f"<speak>{current_chunk.strip()}</speak>")
+    
     return chunks
+
 
 async def generate_audio_edge(text, output_file, voice="en-US-ChristopherNeural"):
     communicate = edge_tts.Communicate(text, voice)
@@ -129,7 +174,12 @@ async def generate_audio_edge(text, output_file, voice="en-US-ChristopherNeural"
 
 def generate_audio_google(text, output_file, voice_name="en-US-Journey-D"):
     client = texttospeech.TextToSpeechClient()
-    input_text = texttospeech.SynthesisInput(text=text)
+    
+    if text.startswith("<speak>"):
+        input_text = texttospeech.SynthesisInput(ssml=text)
+    else:
+        input_text = texttospeech.SynthesisInput(text=text)
+        
     voice = texttospeech.VoiceSelectionParams(language_code="en-US", name=voice_name)
     audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
     response = client.synthesize_speech(input=input_text, voice=voice, audio_config=audio_config)
@@ -142,17 +192,22 @@ async def process_pdf_async(task_id, file_path, original_filename, engine='edge'
         tasks[task_id]['progress'] = 5
         tasks[task_id]['message'] = 'Analyzing PDF structure...'
         
+        # Check for cancellation
+        if tasks[task_id].get('cancelled'):
+             raise Exception("Task cancelled by user")
+        
         reader = PdfReader(file_path)
         total_pages = len(reader.pages)
         start_page_index = find_start_page(reader)
+        end_page_index = find_end_page(reader, start_page_index)
         
-        tasks[task_id]['message'] = f'Extracting text (starting page {start_page_index + 1})...'
+        tasks[task_id]['message'] = f'Extracting text (pages {start_page_index + 1}-{end_page_index})...'
         full_text = ""
-        for i in range(start_page_index, total_pages):
+        for i in range(start_page_index, end_page_index):
             text = reader.pages[i].extract_text()
             if text: full_text += text + "\n\n"
             if i % 10 == 0:
-                tasks[task_id]['progress'] = 5 + int(((i - start_page_index) / (total_pages - start_page_index)) * 10)
+                tasks[task_id]['progress'] = 5 + int(((i - start_page_index) / (end_page_index - start_page_index)) * 10)
 
         if not full_text.strip(): raise Exception("No text found in PDF")
 
@@ -170,26 +225,72 @@ async def process_pdf_async(task_id, file_path, original_filename, engine='edge'
         semaphore = asyncio.Semaphore(semaphore_limit) 
         fallback_triggered = False
 
-        async def process_chunk(index, text):
+        async def process_chunk_controlled(index, text):
             nonlocal fallback_triggered
-            async with semaphore:
-                chunk_filename = os.path.join(temp_dir, f"chunk_{index:04d}.mp3")
-                if engine == 'google' and not fallback_triggered:
-                    try:
-                        loop = asyncio.get_event_loop()
-                        await loop.run_in_executor(None, generate_audio_google, text, chunk_filename)
-                        update_usage(len(text))
-                        return chunk_filename
-                    except Exception as e:
-                        logger.warning(f"Google TTS error: {e}. Falling back.")
-                        fallback_triggered = True
-                
-                await generate_audio_edge(text, chunk_filename)
-                return chunk_filename
+            
+            # Initial check (fast fail)
+            if tasks[task_id].get('cancelled'): 
+                logger.info(f"Task {task_id}: Cancelled before chunk {index}")
+                raise asyncio.CancelledError()
 
-        chunk_tasks = [process_chunk(i, text) for i, text in enumerate(text_chunks)]
+            async with semaphore:
+                # Check pause INSIDE semaphore to prevent race condition where task passed outer check but waited on semaphore
+                while not tasks[task_id]['pause_event'].is_set():
+                    if tasks[task_id].get('cancelled'): 
+                        logger.info(f"Task {task_id}: Cancelled while paused at chunk {index}")
+                        raise asyncio.CancelledError()
+                    
+                    if tasks[task_id]['status'] != 'paused':
+                        logger.info(f"Task {task_id}: Pausing at chunk {index}")
+                        tasks[task_id]['status'] = 'paused'
+                    
+                    await asyncio.sleep(1)
+                
+                # Restore status if we were paused
+                if tasks[task_id]['status'] == 'paused':
+                     logger.info(f"Task {task_id}: Resuming at chunk {index}")
+                     tasks[task_id]['status'] = 'processing'
+
+                if tasks[task_id].get('cancelled'): raise asyncio.CancelledError()
+
+                chunk_filename = os.path.join(temp_dir, f"chunk_{index:04d}.mp3")
+                
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        if engine == 'google' and not fallback_triggered:
+                            try:
+                                loop = asyncio.get_event_loop()
+                                await loop.run_in_executor(None, generate_audio_google, text, chunk_filename)
+                                return chunk_filename
+                            except Exception as e:
+                                logger.warning(f"Task {task_id}: Google TTS error on chunk {index} (Attempt {attempt+1}/{max_retries}): {e}. Falling back.")
+                                if attempt == max_retries - 1:
+                                    fallback_triggered = True
+                                else:
+                                    await asyncio.sleep(1 * (attempt + 1))
+                                    continue
+                        
+                        # Edge TTS with Fallback
+                        try:
+                            await generate_audio_edge(text, chunk_filename)
+                            return chunk_filename
+                        except Exception as e:
+                            logger.error(f"Task {task_id}: Edge TTS failed on chunk {index}: {e}")
+                            raise Exception("Service unavailable at moment")
+
+                    except Exception as e:
+                        logger.error(f"Task {task_id}: Failed to process chunk {index} (Attempt {attempt+1}/{max_retries}): {e}. Text snippet: {text[:50]}...")
+                        if attempt == max_retries - 1:
+                            logger.error(f"Task {task_id}: Skipping chunk {index} after max retries.")
+                            return None 
+                        await asyncio.sleep(1 * (attempt + 1))
+
+        chunk_tasks = [process_chunk_controlled(i, text) for i, text in enumerate(text_chunks)]
         completed = 0
         total_chunks = len(chunk_tasks)
+        
+        logger.info(f"Task {task_id}: Started processing {total_chunks} chunks")
         
         for future in asyncio.as_completed(chunk_tasks):
             await future
@@ -198,11 +299,13 @@ async def process_pdf_async(task_id, file_path, original_filename, engine='edge'
             msg = f'Converted chunk {completed}/{total_chunks}...'
             if fallback_triggered: msg += " (Standard Voice)"
             tasks[task_id]['message'] = msg
+            # logger.info(f"Task {task_id}: {msg}")
 
         ordered_chunk_files = [os.path.join(temp_dir, f"chunk_{i:04d}.mp3") for i in range(len(text_chunks))]
         valid_chunks = [f for f in ordered_chunk_files if os.path.exists(f)]
 
         tasks[task_id]['message'] = 'Merging audio files...'
+        logger.info(f"Task {task_id}: Merging {len(valid_chunks)} audio files")
         
         base_name = os.path.splitext(original_filename)[0]
         base_name = re.sub(r'[^\w\s-]', '', base_name).strip() or "AI_Audio"
@@ -241,7 +344,18 @@ async def process_pdf_async(task_id, file_path, original_filename, engine='edge'
         tasks[task_id]['status'] = 'completed'
         tasks[task_id]['message'] = 'Conversion complete'
         tasks[task_id]['result'] = final_filename
+        logger.info(f"Task {task_id}: Completed successfully. Saved to {final_filename}")
         
+    except asyncio.CancelledError:
+        logger.info(f"Task {task_id}: Process cancelled by user")
+        tasks[task_id]['status'] = 'cancelled'
+        tasks[task_id]['message'] = 'Cancelled'
+        # Cleanup
+        try:
+             import shutil
+             if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
+        except: pass
+
     except Exception as e:
         logger.error(f"Error in task {task_id}: {e}")
         tasks[task_id]['status'] = 'failed'
@@ -268,7 +382,14 @@ def upload_file():
     file_path = os.path.join(UPLOAD_FOLDER, f"{task_id}_{filename}")
     file.save(file_path)
     
-    tasks[task_id] = {'status': 'queued', 'progress': 0, 'message': 'Queued'}
+    tasks[task_id] = {
+        'status': 'queued', 
+        'progress': 0, 
+        'message': 'Queued',
+        'pause_event': threading.Event(),
+        'cancelled': False
+    }
+    tasks[task_id]['pause_event'].set() # Start as running
     
     thread = threading.Thread(target=run_async_process, args=(task_id, file_path, file.filename, engine))
     thread.start()
@@ -277,7 +398,37 @@ def upload_file():
 
 @app.route('/status/<task_id>')
 def get_status(task_id):
-    return jsonify(tasks.get(task_id, {'status': 'not_found'}))
+    status_data = tasks.get(task_id, {'status': 'not_found'})
+    # Convert event to boolean for JSON
+    if 'pause_event' in status_data:
+        status_data_copy = status_data.copy()
+        del status_data_copy['pause_event']
+        return jsonify(status_data_copy)
+    return jsonify(status_data)
+
+@app.route('/pause/<task_id>', methods=['POST'])
+def pause_task(task_id):
+    if task_id in tasks:
+        tasks[task_id]['pause_event'].clear()
+        tasks[task_id]['status'] = 'paused'
+        return jsonify({'status': 'paused'})
+    return jsonify({'error': 'Task not found'}), 404
+
+@app.route('/resume/<task_id>', methods=['POST'])
+def resume_task(task_id):
+    if task_id in tasks:
+        tasks[task_id]['pause_event'].set()
+        tasks[task_id]['status'] = 'processing'
+        return jsonify({'status': 'resumed'})
+    return jsonify({'error': 'Task not found'}), 404
+
+@app.route('/cancel/<task_id>', methods=['POST'])
+def cancel_task(task_id):
+    if task_id in tasks:
+        tasks[task_id]['cancelled'] = True
+        tasks[task_id]['pause_event'].set() # Unblock if paused
+        return jsonify({'status': 'cancelled'})
+    return jsonify({'error': 'Task not found'}), 404
 
 @app.route('/download/<task_id>')
 def download_file(task_id):
