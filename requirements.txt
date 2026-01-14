@@ -6,3 +6,6 @@ reportlab
 edge-tts
 aiofiles
 google-cloud-texttospeech
+supabase
+python-dotenv
+gunicorn

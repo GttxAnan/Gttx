@@ -9,7 +9,25 @@ import AudioPlayer from './components/AudioPlayer';
 import HistorySidebar from './components/HistorySidebar';
 
 // Configure axios base URL
-axios.defaults.baseURL = 'http://localhost:5000';
+// Configure axios base URL
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// Session ID Management
+const getSessionId = () => {
+    let sessionId = sessionStorage.getItem('aurora_session_id');
+    if (!sessionId) {
+        sessionId = crypto.randomUUID();
+        sessionStorage.setItem('aurora_session_id', sessionId);
+    }
+    return sessionId;
+};
+
+// Add Session ID to all requests
+axios.interceptors.request.use(config => {
+    config.headers['X-Session-ID'] = getSessionId();
+    return config;
+});
+
 
 function App() {
     const [file, setFile] = useState(null);
@@ -92,12 +110,28 @@ function App() {
     };
 
     const handleHistorySelect = (item) => {
-        setAudioUrl(`http://localhost:5000/download/${item.id}`);
+        setAudioUrl(item.url || `${axios.defaults.baseURL}/download/${item.id}`); // Handle full URL or fall back
         setStatus('completed');
         setMessage('Loaded from history');
         setProgress(100);
         setIsHistoryOpen(false);
     };
+
+    const handleClearSession = async () => {
+        if (!confirm('Are you sure you want to clear your session history? This will delete all converted files.')) return;
+        try {
+            await axios.post('/cleanup-session');
+            setHistory([]);
+            setAudioUrl(null);
+            setTaskId(null);
+            setStatus(null);
+            setFile(null);
+            setIsHistoryOpen(false);
+        } catch (err) {
+            console.error('Failed to clear session', err);
+        }
+    };
+
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-background">
@@ -208,7 +242,9 @@ function App() {
                 onClose={() => setIsHistoryOpen(false)}
                 history={history}
                 onSelect={handleHistorySelect}
+                onClear={handleClearSession}
             />
+
         </div>
     );
 }

@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+.venv
+venv
+__pycache__
+frontend
+uploads
+output
+*.md
+supbase_setup.sql
+linkding_post.md
