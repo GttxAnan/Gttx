@@ -4,388 +4,592 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF to Audio Converter</title>
-
-    <!-- React & ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-
-    <!-- Babel -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Axios -->
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Outfit', 'sans-serif'],
-                    },
-                    colors: {
-                        primary: '#6366f1',
-                        secondary: '#a855f7',
-                        dark: '#0f172a',
-                        surface: '#1e293b',
-                    },
-                    animation: {
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    }
-                }
-            }
-        }
-    </script>
-
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='aurora_icon.svg') }}">
+    <title>Aurora</title>
     <style>
+        :root {
+            --bg-color: #050510;
+            --card-bg: rgba(20, 20, 40, 0.6);
+            --text-color: #e0e0e0;
+            --accent-green: #00ff9d;
+            --accent-purple: #bd00ff;
+            --accent-blue: #00d4ff;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
         body {
-            background-color: #0f172a;
-            background-image:
-                radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
-                radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%),
-                radial-gradient(at 100% 0%, hsla(339, 49%, 30%, 1) 0, transparent 50%);
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
             min-height: 100vh;
-            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            background: radial-gradient(circle at 10% 20%, rgba(0, 255, 157, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(189, 0, 255, 0.1) 0%, transparent 40%);
         }
 
-        .glass-card {
-            background: rgba(30, 41, 59, 0.7);
+        /* Aurora Effect */
+        .aurora-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(135deg, #050510 0%, #0a0a20 100%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, var(--accent-green), var(--accent-blue));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 255, 157, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .header-icon {
+            width: 50px;
+            height: 50px;
+            filter: drop-shadow(0 0 10px rgba(0, 255, 157, 0.5));
+        }
+
+        /* Coming Soon Section */
+        .coming-soon-container {
+            display: none;
+            padding: 3rem 2rem;
+            border: 2px dashed var(--glass-border);
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .coming-soon-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.7;
+        }
+
+        p.subtitle {
+            color: #888;
+            margin-bottom: 3rem;
+        }
+
+        /* Glass Panel */
+        .glass-panel {
+            background: var(--card-bg);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: transform 0.3s ease;
         }
 
-        /* Custom scrollbar for history */
-        .history-scroll::-webkit-scrollbar {
-            width: 6px;
+        .glass-panel:hover {
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
-        .history-scroll::-webkit-scrollbar-track {
-            background: rgba(30, 41, 59, 0.5);
+        /* Engine Toggle */
+        .engine-toggle {
+            display: inline-flex;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 5px;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            border: 1px solid var(--glass-border);
         }
 
-        .history-scroll::-webkit-scrollbar-thumb {
-            background: #4b5563;
+        .engine-btn {
+            background: transparent;
+            border: none;
+            color: #888;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .engine-btn.active {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            color: white;
+            box-shadow: 0 4px 15px rgba(189, 0, 255, 0.3);
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed var(--glass-border);
+            border-radius: 15px;
+            padding: 3rem 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: var(--accent-green);
+            background: rgba(0, 255, 157, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--accent-green);
+            margin-bottom: 1rem;
+        }
+
+        /* Progress & Status */
+        .status-container {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 3px;
+            overflow: hidden;
+            margin-top: 1rem;
         }
 
-        .history-scroll::-webkit-scrollbar-thumb:hover {
-            background: #6b7280;
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px var(--accent-green);
+        }
+
+        .status-text {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        .etc-text {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.5rem;
+            font-family: monospace;
+        }
+
+        /* Audio Player */
+        .audio-container {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 1rem;
+            border-radius: 10px;
+        }
+
+        .download-btn {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 10px 20px;
+            background: var(--accent-green);
+            color: #000;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .download-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px var(--accent-green);
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 255, 157, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(0, 255, 157, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 255, 157, 0);
+            }
         }
     </style>
 </head>
 
-<body class="flex items-center justify-center p-4 min-h-screen">
+<body>
 
-    <div id="root" class="w-full max-w-6xl"></div>
+    <div class="aurora-bg"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+    <div class="container">
+        <h1>
+            <img src="{{ url_for('static', filename='aurora_icon.svg') }}" alt="" class="header-icon">
+            Aurora
+        </h1>
+        <p class="subtitle">Humane PDF to Audio Converter</p>
 
-        function App() {
-            const [file, setFile] = useState(null);
-            const [taskId, setTaskId] = useState(null);
-            const [status, setStatus] = useState('idle'); // idle, uploading, queued, processing, completed, failed
-            const [progress, setProgress] = useState(0);
-            const [message, setMessage] = useState('');
-            const [downloadUrl, setDownloadUrl] = useState(null);
-            const [history, setHistory] = useState([]);
-            const [data, setData] = useState({});
-            const fileInputRef = useRef(null);
+        <div class="glass-panel">
+            <!-- Engine Selection -->
+            <div class="engine-toggle" id="engine-selection">
+                <button class="engine-btn active" onclick="setEngine('edge')" id="btn-edge">Aurora Flow</button>
+                <button class="engine-btn" onclick="setEngine('google')" id="btn-google">Premium Journey</button>
+            </div>
 
-            const fetchHistory = async () => {
-                try {
-                    const res = await axios.get('/history');
-                    setHistory(res.data);
-                } catch (err) {
-                    console.error("Failed to fetch history", err);
-                }
-            };
+            <!-- Upload Area -->
+            <div class="upload-area" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <div class="upload-icon">📄</div>
+                <h3>Upload PDF</h3>
+                <p style="color: #666; font-size: 0.9rem;">Drag & drop or click to browse</p>
+                <input type="file" id="file-input" accept=".pdf" style="display: none"
+                    onchange="handleFile(this.files[0])">
+            </div>
 
-            useEffect(() => {
-                fetchHistory();
-            }, []);
+            <!-- Coming Soon Area -->
+            <div class="coming-soon-container" id="coming-soon-area">
+                <div class="coming-soon-icon">✨</div>
+                <h3>Coming Soon</h3>
+                <p style="color: #666; font-size: 0.9rem;">The Premium Journey experience is currently under
+                    development. Stay tuned!</p>
+            </div>
 
-            const handleFileChange = (e) => {
-                if (e.target.files && e.target.files[0]) {
-                    const selectedFile = e.target.files[0];
-                    if (selectedFile.type !== 'application/pdf') {
-                        setStatus('failed');
-                        setMessage('Please select a valid PDF file.');
-                        return;
-                    }
-                    setFile(selectedFile);
-                    resetState();
-                }
-            };
-
-            const resetState = () => {
-                setTaskId(null);
-                setStatus('idle');
-                setProgress(0);
-                setMessage('');
-                setDownloadUrl(null);
-                setData({});
-            };
-
-            const handleDragOver = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            };
-
-            const handleDrop = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                    const droppedFile = e.dataTransfer.files[0];
-                    if (droppedFile.type !== 'application/pdf') {
-                        setStatus('failed');
-                        setMessage('Please drop a valid PDF file.');
-                        return;
-                    }
-                    setFile(droppedFile);
-                    resetState();
-                }
-            };
-
-            const handleUpload = async () => {
-                if (!file) return;
-
-                const formData = new FormData();
-                formData.append('file', file);
-
-                try {
-                    setStatus('uploading');
-                    setMessage('Uploading PDF...');
-
-                    const response = await axios.post('/upload', formData, {
-                        headers: { 'Content-Type': 'multipart/form-data' }
-                    });
-
-                    setTaskId(response.data.task_id);
-                    setStatus('queued');
-                    setMessage('Queued for processing...');
-                } catch (error) {
-                    console.error("Upload failed", error);
-                    setStatus('failed');
-                    setMessage('Upload failed: ' + (error.response?.data?.error || error.message));
-                }
-            };
-
-            useEffect(() => {
-                let interval;
-                if (taskId && status !== 'completed' && status !== 'failed' && status !== 'idle') {
-                    interval = setInterval(async () => {
-                        try {
-                            const response = await axios.get(`/status/${taskId}`);
-                            const data = response.data;
-                            setData(data);
-
-                            setStatus(data.status);
-                            setProgress(data.progress);
-                            setMessage(data.message);
-
-                            if (data.status === 'completed') {
-                                setDownloadUrl(`/download/${taskId}`);
-                                clearInterval(interval);
-                                fetchHistory(); // Refresh history on completion
-                            } else if (data.status === 'failed') {
-                                clearInterval(interval);
-                            }
-                        } catch (error) {
-                            console.error("Status check failed", error);
-                        }
-                    }, 1000);
-                }
-                return () => clearInterval(interval);
-            }, [taskId, status]);
-
-            return (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Main Converter Area */}
-                    <div className="lg:col-span-2 glass-card rounded-3xl p-8 shadow-2xl transition-all duration-300">
-                        <div className="text-center mb-8">
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary mb-4 shadow-lg shadow-primary/30">
-                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                                </svg>
-                            </div>
-                            <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-                                PDF to Audio
-                            </h1>
-                            <p className="text-gray-400 mt-2">Transform your documents into speech (High Performance)</p>
-                        </div>
-
-                        {/* File Upload Area */}
-                        <div
-                            className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-300 ${file ? 'border-primary bg-primary/10' : 'border-gray-600 hover:border-gray-400 hover:bg-gray-800/50'
-                                }`}
-                            onDragOver={handleDragOver}
-                            onDrop={handleDrop}
-                        >
-                            <input
-                                type="file"
-                                accept=".pdf"
-                                onChange={handleFileChange}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                ref={fileInputRef}
-                            />
-
-                            {file ? (
-                                <div className="flex flex-col items-center">
-                                    <svg className="w-12 h-12 text-primary mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                    </svg>
-                                    <p className="font-semibold text-lg text-white truncate max-w-xs">{file.name}</p>
-                                    <p className="text-sm text-gray-400 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                                    <button
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            setFile(null);
-                                            resetState();
-                                        }}
-                                        className="mt-4 text-xs text-red-400 hover:text-red-300 z-10 relative"
-                                    >
-                                        Remove File
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center">
-                                    <svg className="w-12 h-12 text-gray-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                                    </svg>
-                                    <p className="font-medium text-gray-300">Drop your PDF here</p>
-                                    <p className="text-sm text-gray-500 mt-1">or click to browse</p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Action Area */}
-                        <div className="mt-8 space-y-4">
-                            {status === 'idle' && file && (
-                                <button
-                                    onClick={handleUpload}
-                                    className="w-full py-4 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all transform hover:scale-[1.02] shadow-lg shadow-primary/25"
-                                >
-                                    Generate Audio Book
-                                </button>
-                            )}
-
-                            {(status === 'uploading' || status === 'queued' || status === 'processing') && (
-                                <div className="bg-surface rounded-xl p-6 border border-gray-700">
-                                    <div className="flex justify-between mb-2">
-                                        <span className="text-sm font-medium text-primary animate-pulse">{message}</span>
-                                        <div className="text-right">
-                                            <span className="text-sm font-bold text-white block">{progress}%</span>
-                                            {status === 'processing' && (
-                                                <span className="text-xs text-gray-400 block">
-                                                    {data.etc_seconds !== undefined
-                                                        ? `Est. time: ${Math.floor(data.etc_seconds / 60)}m ${data.etc_seconds % 60}s`
-                                                        : 'Calculating...'}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-                                        <div
-                                            className="bg-gradient-to-r from-primary to-secondary h-full rounded-full transition-all duration-500 ease-out relative"
-                                            style={{ width: `${progress}%` }}
-                                        >
-                                            <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {status === 'completed' && downloadUrl && (
-                                <div className="space-y-4 animate-fade-in">
-                                    <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex items-center gap-3">
-                                        <div className="bg-green-500 rounded-full p-1">
-                                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                                        </div>
-                                        <span className="text-green-400 font-medium">Conversion Complete!</span>
-                                    </div>
-                                    <a
-                                        href={downloadUrl}
-                                        download
-                                        className="block w-full py-4 px-6 rounded-xl font-bold text-center text-white bg-green-600 hover:bg-green-500 transition-all transform hover:scale-[1.02] shadow-lg shadow-green-500/25"
-                                    >
-                                        Download Audio Book
-                                    </a>
-                                    <button
-                                        onClick={() => { setFile(null); resetState(); }}
-                                        className="block w-full py-3 text-sm text-gray-400 hover:text-white transition-colors"
-                                    >
-                                        Convert Another File
-                                    </button>
-                                </div>
-                            )}
-
-                            {status === 'failed' && (
-                                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
-                                    <svg className="w-6 h-6 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    <div>
-                                        <p className="text-red-400 font-medium">Error</p>
-                                        <p className="text-red-300 text-sm mt-1">{message}</p>
-                                        <button
-                                            onClick={resetState}
-                                            className="mt-3 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-1 rounded-md transition-colors"
-                                        >
-                                            Try Again
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* History Sidebar */}
-                    <div className="glass-card rounded-3xl p-6 shadow-2xl h-fit max-h-[800px] flex flex-col">
-                        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                            <svg className="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Recent Conversions
-                        </h2>
-
-                        <div className="overflow-y-auto history-scroll pr-2 space-y-3 flex-1">
-                            {history.length === 0 ? (
-                                <div className="text-center py-8 text-gray-500">
-                                    <p>No history yet</p>
-                                </div>
-                            ) : (
-                                history.map((item) => (
-                                    <div key={item.id} className="bg-surface/50 rounded-xl p-4 border border-gray-700 hover:border-gray-500 transition-colors">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <h3 className="font-medium text-white truncate w-32" title={item.filename}>{item.filename}</h3>
-                                            <span className="text-xs text-gray-400">{item.date.split(' ')[0]}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-xs text-gray-400 mb-3">
-                                            <span>{(item.size / 1024 / 1024).toFixed(2)} MB</span>
-                                            <span>{item.pages} pages</span>
-                                        </div>
-                                        <a
-                                            href={`/download/${item.id}`}
-                                            download
-                                            className="block w-full py-2 px-3 rounded-lg bg-primary/20 text-primary hover:bg-primary/30 text-center text-sm font-semibold transition-colors"
-                                        >
-                                            Download
-                                        </a>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
+            <!-- Status & Progress -->
+            <div class="status-container" id="status-container">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progress-fill"></div>
                 </div>
-            );
+                <div class="status-text" id="status-text">Initializing...</div>
+                <div class="etc-text" id="etc-text">Estimated time: Calculating...</div>
+
+                <div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 1rem;">
+                    <button id="pause-btn" onclick="togglePause()" class="engine-btn"
+                        style="display:none; border: 1px solid var(--glass-border);">Pause</button>
+                    <button id="cancel-btn" onclick="cancelTask()" class="engine-btn"
+                        style="display:none; border: 1px solid #ff4444; color: #ff4444;">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Audio Player -->
+            <div class="audio-container" id="audio-container">
+                <h3 id="audio-title" style="color: var(--accent-green)">Audio Ready</h3>
+                <audio id="audio-player" controls></audio>
+                <br>
+                <a href="#" id="download-link" class="download-btn">Download Audio</a>
+                <br><br>
+                <button onclick="resetUI()"
+                    style="background:none; border:none; color:#666; cursor:pointer; text-decoration:underline;">Convert
+                    Another</button>
+            </div>
+        </div>
+
+        <!-- History Section -->
+        <div class="glass-panel" style="margin-top: 2rem; width: 100%; display: none;" id="history-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin: 0; color: var(--accent-blue);">Conversion History</h3>
+                <button onclick="clearSession()"
+                    style="background: rgba(255, 68, 68, 0.2); border: 1px solid #ff4444; color: #ff4444; border-radius: 5px; cursor: pointer; padding: 5px 10px; font-size: 0.8rem;">
+                    Clear History
+                </button>
+            </div>
+            <div id="history-list" style="max-height: 200px; overflow-y: auto; text-align: left;">
+                <!-- History items will be injected here -->
+            </div>
+        </div>
+
+        <button onclick="toggleHistory()"
+            style="margin-top: 1rem; background: none; border: none; color: #888; cursor: pointer; text-decoration: underline;">
+            View History
+        </button>
+    </div>
+
+    <script>
+        let currentEngine = 'edge';
+        let taskId = null;
+        let pollInterval = null;
+        let isPaused = false;
+        let isHistoryVisible = false;
+
+        // Load history on init
+        fetchHistory();
+
+        function setEngine(engine) {
+            if (taskId) return; // Lock if processing
+            currentEngine = engine;
+            document.getElementById('btn-google').classList.toggle('active', engine === 'google');
+            document.getElementById('btn-edge').classList.toggle('active', engine === 'edge');
+
+            // Toggle Logic
+            if (engine === 'google') {
+                document.getElementById('drop-zone').style.display = 'none';
+                document.getElementById('coming-soon-area').style.display = 'block';
+            } else {
+                document.getElementById('drop-zone').style.display = 'block';
+                document.getElementById('coming-soon-area').style.display = 'none';
+            }
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        const dropZone = document.getElementById('drop-zone');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--accent-green)';
+            dropZone.style.background = 'rgba(0, 255, 157, 0.1)';
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--glass-border)';
+            dropZone.style.background = 'transparent';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--glass-border)';
+            dropZone.style.background = 'transparent';
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        async function togglePause() {
+            if (!taskId) return;
+            const endpoint = isPaused ? '/resume' : '/pause';
+            try {
+                await fetch(`${endpoint}/${taskId}`, { method: 'POST' });
+                isPaused = !isPaused;
+                document.getElementById('pause-btn').innerText = isPaused ? 'Resume' : 'Pause';
+            } catch (e) {
+                console.error('Control error:', e);
+            }
+        }
+
+        async function cancelTask() {
+            if (!taskId) return;
+            if (confirm('Do you want to stop processing the PDF?')) {
+                try {
+                    // Send cancel request but don't wait for it to finish before resetting UI
+                    fetch(`/cancel/${taskId}`, { method: 'POST' }).catch(e => console.error('Cancel error:', e));
+
+                    // Immediately reset UI as requested by user
+                    resetUI();
+                } catch (e) {
+                    console.error('Cancel error:', e);
+                    resetUI();
+                }
+            }
+        }
+
+        // Prevent accidental tab closure during processing
+        window.addEventListener('beforeunload', (e) => {
+            if (taskId) {
+                e.preventDefault();
+                e.returnValue = 'Processing is in progress. Are you sure you want to leave?';
+            }
+        });
+
+        async function handleFile(file) {
+            if (!file || file.type !== 'application/pdf') {
+                alert('Please upload a valid PDF file.');
+                return;
+            }
+
+            // UI Reset
+            document.getElementById('drop-zone').style.display = 'none';
+            document.getElementById('status-container').style.display = 'block';
+            document.getElementById('audio-container').style.display = 'none';
+
+            // Lock engine
+            document.getElementById('engine-selection').style.opacity = '0.5';
+            document.getElementById('engine-selection').style.pointerEvents = 'none';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('engine', currentEngine);
+
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                taskId = data.task_id;
+                pollStatus();
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+
+        function pollStatus() {
+            pollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/status/${taskId}`);
+                    const data = await res.json();
+
+                    updateStatus(data);
+
+                    // Show controls
+                    if (data.status === 'processing' || data.status === 'paused' || data.status === 'queued') {
+                        document.getElementById('pause-btn').style.display = 'inline-block';
+                        document.getElementById('cancel-btn').style.display = 'inline-block';
+                    }
+
+                    if (data.status === 'paused') {
+                        isPaused = true;
+                        document.getElementById('pause-btn').innerText = 'Resume';
+                    } else {
+                        isPaused = false;
+                        document.getElementById('pause-btn').innerText = 'Pause';
+                    }
+
+                    if (data.status === 'completed') {
+                        clearInterval(pollInterval);
+                        showResult(data);
+                    } else if (data.status === 'failed') {
+                        clearInterval(pollInterval);
+                        showError(data.message);
+                    } else if (data.status === 'cancelled') {
+                        clearInterval(pollInterval);
+                        resetUI();
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }, 1000);
+        }
+
+        function updateStatus(data) {
+            const progress = data.progress || 0;
+            document.getElementById('progress-fill').style.width = `${progress}%`;
+            document.getElementById('status-text').innerText = data.message;
+
+            // Simple ETC placeholder logic
+            if (progress > 0 && progress < 100) {
+                document.getElementById('etc-text').innerText = 'Estimated time: ~' + Math.ceil((100 - progress) / 2) + 's remaining';
+            } else {
+                document.getElementById('etc-text').innerText = '';
+            }
+        }
+
+        function showResult(data) {
+            document.getElementById('status-container').style.display = 'none';
+            document.getElementById('audio-container').style.display = 'block';
+
+            // Unlock engine
+            document.getElementById('engine-selection').style.opacity = '1';
+            document.getElementById('engine-selection').style.pointerEvents = 'auto';
+
+            const audioUrl = `/download/${taskId}`;
+            const player = document.getElementById('audio-player');
+            player.src = audioUrl;
+
+            document.getElementById('download-link').href = audioUrl;
+            document.getElementById('download-link').download = data.result; // Use filename from backend
+            document.getElementById('audio-title').innerText = data.result;
+        }
+
+        function showError(msg) {
+            document.getElementById('status-text').innerText = 'Error: ' + msg;
+            document.getElementById('status-text').style.color = '#ff4444';
+            document.getElementById('progress-fill').style.backgroundColor = '#ff4444';
+
+            // Unlock engine
+            document.getElementById('engine-selection').style.opacity = '1';
+            document.getElementById('engine-selection').style.pointerEvents = 'auto';
+        }
+
+        function resetUI() {
+            taskId = null;
+            isPaused = false;
+            if (pollInterval) clearInterval(pollInterval);
+
+            document.getElementById('drop-zone').style.display = 'block';
+            document.getElementById('status-container').style.display = 'none';
+            document.getElementById('audio-container').style.display = 'none';
+            document.getElementById('file-input').value = '';
+            document.getElementById('progress-fill').style.width = '0%';
+            document.getElementById('status-text').style.color = '#aaa';
+            document.getElementById('progress-fill').style.backgroundColor = 'linear-gradient(90deg, var(--accent-green), var(--accent-blue))';
+
+            document.getElementById('pause-btn').style.display = 'none';
+            document.getElementById('cancel-btn').style.display = 'none';
+            document.getElementById('pause-btn').innerText = 'Pause';
+
+            // Unlock engine
+            document.getElementById('engine-selection').style.opacity = '1';
+            document.getElementById('engine-selection').style.pointerEvents = 'auto';
+        }
+
+        async function fetchHistory() {
+            try {
+                const res = await fetch('/history');
+                const data = await res.json();
+                renderHistory(data);
+            } catch (e) {
+                console.error('Failed to load history', e);
+            }
+        }
+
+        function renderHistory(items) {
+            const list = document.getElementById('history-list');
+            if (items.length === 0) {
+                list.innerHTML = '<p style="color:#666; font-size:0.9rem;">No history yet.</p>';
+                return;
+            }
+            list.innerHTML = items.map(item => `
+                <div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 0.9rem;">
+                        <div style="color: #ddd;">${item.filename}</div>
+                        <div style="font-size: 0.8rem; color: #666;">${item.date}</div>
+                    </div>
+                    <a href="/download/${item.id}" download="${item.audio_filename}" 
+                       style="color: var(--accent-green); text-decoration: none; font-size: 0.9rem; padding: 5px 10px; border: 1px solid var(--accent-green); border-radius: 5px;">
+                        Download
+                    </a>
+                </div>
+            `).join('');
+        }
+
+        function toggleHistory() {
+            isHistoryVisible = !isHistoryVisible;
+            document.getElementById('history-panel').style.display = isHistoryVisible ? 'block' : 'none';
+            // Refresh logic if needed
+            if (isHistoryVisible) fetchHistory();
+        }
+
+        async function clearSession() {
+            if (!confirm('Are you sure you want to clear your history? This will delete all your converted files.')) return;
+            try {
+                const res = await fetch('/cleanup-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+                const data = await res.json();
+                if (data.status === 'cleared') {
+                    fetchHistory(); // Refresh list (should be empty)
+                } else {
+                    alert('Failed to clear session');
+                }
+            } catch (e) {
+                console.error('Clear error:', e);
+                alert('Error clearing session');
+            }
+        }
     </script>
 </body>
 

@@ -9,7 +9,7 @@ import shutil
 import time
 from datetime import datetime
 import html
-from flask import Flask, request, jsonify, send_file, redirect
+from flask import Flask, request, jsonify, send_file, redirect, render_template
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from pypdf import PdfReader
@@ -21,7 +21,7 @@ from supabase import create_client, Client
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__, static_folder='frontend/dist', static_url_path='')
+app = Flask(__name__)
 CORS(app)
 
 # Configuration
@@ -279,7 +279,7 @@ def run_async_process(task_id, file_path, original_filename, engine, session_id)
 # --- Routes ---
 
 @app.route('/')
-def index(): return send_file('frontend/dist/index.html')
+def index(): return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
