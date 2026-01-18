@@ -1,0 +1,36 @@
+{
+    "rewrites": [
+      {
+        "source": "/upload",
+        "destination": "https://YOUR_BACKEND_URL/upload"
+      },
+      {
+        "source": "/status/:match*",
+        "destination": "https://YOUR_BACKEND_URL/status/:match*"
+      },
+      {
+        "source": "/download/:match*",
+        "destination": "https://YOUR_BACKEND_URL/download/:match*"
+      },
+      {
+        "source": "/history",
+        "destination": "https://YOUR_BACKEND_URL/history"
+      },
+      {
+        "source": "/cleanup-session",
+        "destination": "https://YOUR_BACKEND_URL/cleanup-session"
+      },
+      {
+        "source": "/pause/:match*",
+        "destination": "https://YOUR_BACKEND_URL/pause/:match*"
+      },
+      {
+        "source": "/resume/:match*",
+        "destination": "https://YOUR_BACKEND_URL/resume/:match*"
+      },
+      {
+        "source": "/cancel/:match*",
+        "destination": "https://YOUR_BACKEND_URL/cancel/:match*"
+      }
+    ]
+}

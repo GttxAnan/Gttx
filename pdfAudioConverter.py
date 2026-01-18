@@ -279,7 +279,7 @@ def run_async_process(task_id, file_path, original_filename, engine, session_id)
 # --- Routes ---
 
 @app.route('/')
-def index(): return render_template('index.html')
+def index(): return jsonify({"status": "Backend API Running", "service": "Aurora Audio Converter"})
 
 @app.route('/upload', methods=['POST'])
 def upload_file():

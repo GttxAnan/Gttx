@@ -1,49 +1,69 @@
 # Aurora - PDF to Audio Converter
 
-A beautiful, "Aurora" themed web application to convert PDF documents into natural-sounding audiobooks using Google Cloud TTS and Microsoft Edge TTS.
+A beautiful, "Aurora" themed web application to convert PDF documents into natural-sounding audiobooks. Now with persistent storage and session management.
 
 ## Features
 - **Drag & Drop Interface**: Easy to use file upload.
 - **Dual Engines**: 
   - **Premium Journey**: Uses Google Cloud's high-quality "Journey" voices.
   - **Standard Edge**: Uses Microsoft Edge's online TTS (free fallback).
-- **Smart Chunking**: Intelligent text splitting to maintain sentence continuity.
-- **Progress Tracking**: Real-time progress bar and status updates.
+- **Session History**: Tracks your conversions during your session.
+- **Cloud Storage**: Securely stores audio files (Supabase).
 
 ## Prerequisites
-- **Python 3.10+** (The application requires Python 3.6+ for syntax features, tested on 3.10).
-- **Google Cloud Credentials** (Optional, for Premium engine): Set up `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
+- **Python 3.10+**
+- **Node.js 18+**
+- **Supabase Account** (Free tier)
+- **Google Cloud Credentials** (Optional)
 
-## Installation
+## Local Setup
 
-1.  **Clone the repository** (if not already done).
-2.  **Install dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-    *Note: If you have multiple Python versions, ensure you use the one for Python 3.x (e.g., `pip3` or `py -m pip`).*
+### 1. Backend
+```bash
+# Create virtual env
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
 
-## How to Run
+# Install dependencies
+pip install -r requirements.txt
 
-1.  **Start the server**:
-    ```bash
-    py pdfAudioConverter.py
-    ```
-    *Or if you don't have the `py` launcher:*
-    ```bash
-    python3 pdfAudioConverter.py
-    ```
+# Configure Environment
+# Create a .env file with:
+# SUPABASE_URL=your_url
+# SUPABASE_KEY=your_anon_key
+# GOOGLE_APPLICATION_CREDENTIALS=path/to/creds.json (Optional)
 
-2.  **Open the application**:
-    Open your web browser and navigate to:
-    [http://localhost:5000](http://localhost:5000)
+# Run Server
+python pdfAudioConverter.py
+```
 
-## Usage
-1.  Select your preferred TTS engine (Premium or Standard).
-2.  Drag and drop a PDF file onto the upload area.
-3.  Wait for the conversion to complete.
-4.  Download the generated MP3 file.
+### 2. Frontend
+You can serve the frontend using any static file server.
+```bash
+cd frontend
+# Example using python
+python -m http.server 3000
+```
+*Note: For the frontend to talk to the backend locally, you may need to configure a proxy or ensure the specific endpoints in `index.html` point to your running backend URL (e.g., http://localhost:5000).*
 
-## Troubleshooting
-- **SyntaxError: invalid syntax**: You are likely running an old version of Python (e.g., 2.7). Please use Python 3.10+ via `py` or `python3`.
-- **ModuleNotFoundError**: Ensure you installed dependencies with `pip install -r requirements.txt`.
+## Deployment (Free Tier)
+
+### Backend (Render)
+1. Fork this repo.
+2. Create a **Web Service** on Render.
+3. Connect repo.
+4. Set Build Command: `pip install -r requirements.txt`
+5. Set Start Command: `python pdfAudioConverter.py`
+6. Set Environment Variables (`SUPABASE_URL`, `SUPABASE_KEY`).
+7. Deploy.
+
+### Frontend (Vercel)
+1. Create a **New Project** on Vercel.
+2. Import the `frontend` directory from the repo.
+3. Vercel should automatically detect the HTML project.
+4. **Crucial**: Update `frontend/vercel.json` and replace `https://YOUR_BACKEND_URL` with your actual Render Backend URL.
+5. Deploy.
+
+### Database (Supabase)
+See `supabase_setup.md` for SQL initialization scripts.
+
