@@ -14,6 +14,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
+# Note: Frontend assets are no longer served by Flask, but we copy the repo for simplicity
 COPY . .
 
 # Create necessary directories

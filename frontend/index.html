@@ -321,6 +321,7 @@
         </button>
     </div>
 
+    <script src="config.js"></script>
     <script>
         let currentEngine = 'edge';
         let taskId = null;
@@ -374,7 +375,7 @@
             if (!taskId) return;
             const endpoint = isPaused ? '/resume' : '/pause';
             try {
-                await fetch(`${endpoint}/${taskId}`, { method: 'POST' });
+                await fetch(`${window.BACKEND_URL}${endpoint}/${taskId}`, { method: 'POST' });
                 isPaused = !isPaused;
                 document.getElementById('pause-btn').innerText = isPaused ? 'Resume' : 'Pause';
             } catch (e) {
@@ -387,7 +388,7 @@
             if (confirm('Do you want to stop processing the PDF?')) {
                 try {
                     // Send cancel request but don't wait for it to finish before resetting UI
-                    fetch(`/cancel/${taskId}`, { method: 'POST' }).catch(e => console.error('Cancel error:', e));
+                    fetch(`${window.BACKEND_URL}/cancel/${taskId}`, { method: 'POST' }).catch(e => console.error('Cancel error:', e));
 
                     // Immediately reset UI as requested by user
                     resetUI();
@@ -426,7 +427,7 @@
             formData.append('engine', currentEngine);
 
             try {
-                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const res = await fetch(`${window.BACKEND_URL}/upload`, { method: 'POST', body: formData });
                 const data = await res.json();
 
                 if (data.error) throw new Error(data.error);
@@ -441,7 +442,7 @@
         function pollStatus() {
             pollInterval = setInterval(async () => {
                 try {
-                    const res = await fetch(`/status/${taskId}`);
+                    const res = await fetch(`${window.BACKEND_URL}/status/${taskId}`);
                     const data = await res.json();
 
                     updateStatus(data);
@@ -497,7 +498,7 @@
             document.getElementById('engine-selection').style.opacity = '1';
             document.getElementById('engine-selection').style.pointerEvents = 'auto';
 
-            const audioUrl = `/download/${taskId}`;
+            const audioUrl = `${window.BACKEND_URL}/download/${taskId}`;
             const player = document.getElementById('audio-player');
             player.src = audioUrl;
 
@@ -540,7 +541,7 @@
 
         async function fetchHistory() {
             try {
-                const res = await fetch('/history');
+                const res = await fetch(`${window.BACKEND_URL}/history`);
                 const data = await res.json();
                 renderHistory(data);
             } catch (e) {
@@ -560,7 +561,7 @@
                         <div style="color: #ddd;">${item.filename}</div>
                         <div style="font-size: 0.8rem; color: #666;">${item.date}</div>
                     </div>
-                    <a href="/download/${item.id}" download="${item.audio_filename}" 
+                    <a href="${window.BACKEND_URL}/download/${item.id}" download="${item.audio_filename}" 
                        style="color: var(--accent-green); text-decoration: none; font-size: 0.9rem; padding: 5px 10px; border: 1px solid var(--accent-green); border-radius: 5px;">
                         Download
                     </a>
@@ -578,7 +579,7 @@
         async function clearSession() {
             if (!confirm('Are you sure you want to clear your history? This will delete all your converted files.')) return;
             try {
-                const res = await fetch('/cleanup-session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+                const res = await fetch(`${window.BACKEND_URL}/cleanup-session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
                 const data = await res.json();
                 if (data.status === 'cleared') {
                     fetchHistory(); // Refresh list (should be empty)
